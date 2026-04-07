@@ -1,17 +1,16 @@
-# budget_tracker_app
+# Budget Tracker
 
-A new Flutter project.
+**By:** Team 99  
 
-## Getting Started
+## What is this app?
 
-This project is a starting point for a Flutter application.
+The **Budget Tracker** is a simple and user-friendly application designed to help users manage their personal finances.  
+It allows users to record income and expenses, categorize transactions, view their current balance, and track spending habits over time.  
+This app is suitable for anyone who wants to stay organized and make informed financial decisions.
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Team Members
+- **Gabriel Sabang** – Leader  
+- **Francis Vernard Yap**  
+- **Khen Andrei Lim**  
+- **Sailor Sam Pacaldo**  
+- **Zach Michael Bacolod**
