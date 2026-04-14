@@ -63,14 +63,12 @@ class _ProfileState extends State<ProfileScreen> {
     }
   }
 
-  void _showCashFlowOverlay() {
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.black.withValues(alpha: 0.2), // subtle dim
-    builder: (_) {
-      return const _CashFlowSheet();
-    },
+void _showCashFlowOverlay() {
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (_) => const CashFlowScreen(),
+    ),
   );
 }
 
@@ -183,48 +181,40 @@ class _ProfileState extends State<ProfileScreen> {
           const SizedBox(height: 14),
 
           // Debit Credit
-GestureDetector(
-  onTap: _showCashFlowOverlay,
-  child: Container(
-    padding: const EdgeInsets.all(18),
-    decoration: BoxDecoration(
-      color: AppColors.surface,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: AppColors.divider),
-    ),
-    child: Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: const Icon(Icons.bar_chart_rounded,
-              color: AppColors.primary, size: 20),
-        ),
-        const SizedBox(width: 14),
-
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Cash Flow',
-                  style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 4),
-              Text('Tap to view income vs expenses',
-                  style: Theme.of(context).textTheme.bodyMedium),
-            ],
-          ),
-        ),
-
-        const Icon(Icons.arrow_forward_ios_rounded,
-            size: 16, color: AppColors.textMuted),
-      ],
-    ),
-  ),
-),
-const SizedBox(height: 24),
+            GestureDetector(
+              onTap: _showCashFlowOverlay,
+              child: Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.divider),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.bar_chart_rounded,
+                        color: AppColors.primary),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Cash Flow',
+                              style: Theme.of(context).textTheme.titleLarge),
+                          const SizedBox(height: 4),
+                          Text('View income, expenses & history',
+                              style: Theme.of(context).textTheme.bodyMedium),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.arrow_forward_ios_rounded,
+                        size: 16,
+                        color: AppColors.textMuted),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
 
           // Account info
           Container(padding: const EdgeInsets.all(18),
@@ -281,224 +271,235 @@ class _InfoRow extends StatelessWidget {
   ]);
 }
 
+class CashFlowScreen extends StatelessWidget {
+  const CashFlowScreen({super.key});
 
-class _CashFlowSheet extends StatelessWidget {
-  const _CashFlowSheet();
+  Future<List<TransactionModel>> _getTransactions() async {
+    final repo = BudgetRepository();
+    return await repo.getTransactions();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.65,
-      minChildSize: 0.45,
-      maxChildSize: 0.95,
-      builder: (_, controller) {
-        return Container(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-          decoration: const BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.vertical(
-              top: Radius.circular(24),
-            ),
-          ),
-          child: Column(
+    final fmt = NumberFormat('#,##0.00');
+
+    BarChartGroupData _bar(int x, double y, Color color) {
+  return BarChartGroupData(
+    x: x,
+    barRods: [
+      BarChartRodData(
+        toY: y,
+        color: color,
+        width: 26,
+        borderRadius: BorderRadius.circular(6),
+      ),
+    ],
+  );
+}
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Cash Flow'),
+      ),
+      body: FutureBuilder<List<TransactionModel>>(
+        future: _getTransactions(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final txns = snapshot.data!;
+
+          double income = 0;
+          double expense = 0;
+
+          for (final t in txns) {
+            if (t.type == 'income') {
+              income += t.amount;
+            } else {
+              expense += t.amount;
+            }
+          }
+
+          final net = income - expense;
+
+          return ListView(
+            padding: const EdgeInsets.all(16),
             children: [
-              // Drag handle
+
+              // ================= SUMMARY =================
               Container(
-                width: 42,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.textMuted.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(10),
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.divider),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _SummaryTile(
+                          label: "Income",
+                          value: income,
+                          color: AppColors.income,
+                        ),
+                        _SummaryTile(
+                          label: "Expense",
+                          value: expense,
+                          color: AppColors.expense,
+                        ),
+                        _SummaryTile(
+                          label: "Net",
+                          value: net,
+                          color: net >= 0
+                              ? AppColors.income
+                              : AppColors.expense,
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
 
-              // Title row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Cash Flow',
-                      style: Theme.of(context).textTheme.titleLarge),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  )
-                ],
+              const SizedBox(height: 20),
+
+ // ================= CHART (RETAINED) =================
+    Text(
+      "Overview",
+      style: Theme.of(context).textTheme.titleLarge,
+    ),
+
+    const SizedBox(height: 10),
+
+    Container(
+      height: 220,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: BarChart(
+        BarChartData(
+          maxY: (income > expense ? income : expense) * 1.2,
+          barGroups: [
+            _bar(0, income, AppColors.income),
+            _bar(1, expense, AppColors.expense),
+          ],
+          titlesData: FlTitlesData(
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                getTitlesWidget: (value, _) {
+                  return Text(value == 0 ? "Income" : "Expense");
+                },
+              ),
+            ),
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(showTitles: true),
+            ),
+          ),
+          gridData: FlGridData(show: true),
+          borderData: FlBorderData(show: false),
+        ),
+      ),
+    ),
+
+    const SizedBox(height: 24),
+
+              // ================= TRANSACTION HISTORY =================
+              Text(
+                "Transaction History",
+                style: Theme.of(context).textTheme.titleLarge,
               ),
 
               const SizedBox(height: 10),
 
-              Expanded(
-                child: _CashFlowContent(controller: controller),
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: txns.length,
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemBuilder: (context, index) {
+                  final t = txns[index];
+
+                  final isCredit = t.type == 'income';
+
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: isCredit
+                          ? AppColors.income.withValues(alpha: 0.15)
+                          : AppColors.expense.withValues(alpha: 0.15),
+                      child: Icon(
+                        isCredit
+                            ? Icons.arrow_downward
+                            : Icons.arrow_upward,
+                        color: isCredit
+                            ? AppColors.income
+                            : AppColors.expense,
+                      ),
+                    ),
+                    title: Text(t.title),
+                    subtitle: Text(
+                      isCredit ? "Credit" : "Debit",
+                      style: TextStyle(
+                        color: isCredit
+                            ? AppColors.income
+                            : AppColors.expense,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    trailing: Text(
+                      (isCredit ? "+" : "-") +
+                          "₱${fmt.format(t.amount)}",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: isCredit
+                            ? AppColors.income
+                            : AppColors.expense,
+                      ),
+                    ),
+                  );
+                },
               ),
             ],
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }
 
-class _CashFlowContent extends StatelessWidget {
-  final ScrollController controller;
-  final BudgetRepository _repo = BudgetRepository();
+class _SummaryTile extends StatelessWidget {
+  final String label;
+  final double value;
+  final Color color;
 
-  _CashFlowContent({required this.controller});
-
-  Future<Map<String, double>> _getCashFlow() async {
-    final txns = await _repo.getTransactions();
-    double income = 0;
-    double expense = 0;
-
-    for (var t in txns) {
-      if (t.type == 'income') {
-        income += t.amount;
-      } else {
-        expense += t.amount;
-      }
-    }
-
-    return {'income': income, 'expense': expense};
-  }
+  const _SummaryTile({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
     final fmt = NumberFormat('#,##0.00');
 
-    return FutureBuilder<Map<String, double>>(
-      future: _getCashFlow(),
-      builder: (context, snap) {
-        if (!snap.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        final income = snap.data!['income']!;
-        final expense = snap.data!['expense']!;
-        final net = income - expense;
-        final maxY = (income > expense ? income : expense) * 1.2;
-
-        return ListView(
-          controller: controller,
-          children: [
-            const SizedBox(height: 10),
-
-            // Chart
-            Container(
-              height: 200,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: BarChart(
-                BarChartData(
-                  maxY: maxY == 0 ? 100 : maxY,
-                  barGroups: [
-                    _bar(0, income, AppColors.income),
-                    _bar(1, expense, AppColors.expense),
-                  ],
-                  titlesData: FlTitlesData(
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (v, _) =>
-                            Text(v == 0 ? 'Income' : 'Expense'),
-                      ),
-                    ),
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(showTitles: true),
-                    ),
-                  ),
-                  gridData: FlGridData(show: true),
-                  borderData: FlBorderData(show: false),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // Stats cards
-            Row(
-              children: [
-                Expanded(child: _statCard('Income', income, AppColors.income)),
-                const SizedBox(width: 10),
-                Expanded(child: _statCard('Expense', expense, AppColors.expense)),
-              ],
-            ),
-
-            const SizedBox(height: 10),
-
-            // Net highlight
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: (net >= 0
-                        ? AppColors.income
-                        : AppColors.expense)
-                    .withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Net Balance'),
-                  Text(
-                    '₱${fmt.format(net)}',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: net >= 0
-                          ? AppColors.income
-                          : AppColors.expense,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  BarChartGroupData _bar(int x, double y, Color color) {
-    return BarChartGroupData(
-      x: x,
-      barRods: [
-        BarChartRodData(
-          toY: y,
-          color: color,
-          width: 26,
-          borderRadius: BorderRadius.circular(6),
+    return Column(
+      children: [
+        Text(label,
+            style: const TextStyle(fontSize: 12)),
+        const SizedBox(height: 6),
+        Text(
+          "₱${fmt.format(value)}",
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
         ),
       ],
     );
   }
-
-  Widget _statCard(String label, double value, Color color) {
-    final fmt = NumberFormat('#,##0.00');
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          Text(label,
-              style: const TextStyle(fontSize: 12)),
-          const SizedBox(height: 6),
-          Text(
-            '₱${fmt.format(value)}',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
-
-
