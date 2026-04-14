@@ -1,6 +1,6 @@
 {
-    "name": "budget_tracker",
-    "short_name": "budget_tracker",
+    "name": "budget_tracker_app",
+    "short_name": "budget_tracker_app",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
