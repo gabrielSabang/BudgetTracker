@@ -15,16 +15,13 @@ import 'presentation/screens/home/home_screen.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Light status bar icons for light theme
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
   ));
 
-  // Portrait only
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
-  // Init Supabase — credentials are pre-configured
   await Supabase.initialize(
     url:     AppConstants.supabaseUrl,
     anonKey: AppConstants.supabaseAnonKey,
