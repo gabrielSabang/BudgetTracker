@@ -148,64 +148,295 @@ class _Greeting extends StatelessWidget {
 }
 
 // ── Blue gradient budget card ─────────────────────────────────
-class _BudgetCard extends StatelessWidget {
+class _BudgetCard extends StatefulWidget {
   final HomeLoaded st;
   const _BudgetCard({required this.st});
 
   @override
+  State<_BudgetCard> createState() => _BudgetCardState();
+}
+
+class _BudgetCardState extends State<_BudgetCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+
+    _animation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    );
+
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final budget   = st.profile.monthlyBudget;
-    final spent    = st.summary['expense'] ?? 0;
-    final remain   = budget - spent;
+    final budget = widget.st.profile.monthlyBudget;
+    final spent = widget.st.summary['expense'] ?? 0;
+    final remain = budget - spent;
+
     final progress = budget > 0 ? (spent / budget).clamp(0.0, 1.0) : 0.0;
-    final daysLeft = DateTime(st.year, st.month + 1, 0).day - DateTime.now().day;
-    final fmt      = NumberFormat('#,##0.00');
+
+    final daysLeft =
+        DateTime(widget.st.year, widget.st.month + 1, 0).day -
+        DateTime.now().day;
+
+    final fmt = NumberFormat('#,##0.00');
+
+    final status = progress < 0.7
+        ? _BudgetStatus.safe
+        : progress < 0.9
+            ? _BudgetStatus.warning
+            : _BudgetStatus.danger;
+
+    Color statusColor = switch (status) {
+      _BudgetStatus.safe => Colors.white,
+      _BudgetStatus.warning => Colors.orangeAccent,
+      _BudgetStatus.danger => Colors.redAccent,
+    };
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Container(
-        padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [AppColors.primary, AppColors.primaryDark],
-            begin: Alignment.topLeft, end: Alignment.bottomRight),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.3),
-            blurRadius: 18, offset: const Offset(0, 6))],
+      child: GestureDetector(
+        onTap: () {},
+        child: Container(
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(28),
+            gradient: LinearGradient(
+              colors: [
+                AppColors.primary.withOpacity(0.95),
+                AppColors.primaryDark,
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withOpacity(0.35),
+                blurRadius: 30,
+                offset: const Offset(0, 14),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              /// glass highlight
+              Positioned(
+                top: -60,
+                right: -60,
+                child: Container(
+                  width: 180,
+                  height: 180,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withOpacity(0.08),
+                  ),
+                ),
+              ),
+
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  /// Header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "Monthly Budget",
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                        ),
+                      ),
+                      Icon(
+                        Icons.tune_rounded,
+                        color: Colors.white.withOpacity(0.8),
+                        size: 20,
+                      )
+                    ],
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  /// Main value + ring
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              budget > 0
+                                  ? '₱${fmt.format(budget)}'
+                                  : 'No budget set',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 32,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              "Tap for insights",
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.6),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      /// Circular progress (premium feel)
+                      SizedBox(
+                        width: 70,
+                        height: 70,
+                        child: AnimatedBuilder(
+                          animation: _animation,
+                          builder: (context, _) {
+                            return CustomPaint(
+                              painter: _RingPainter(
+                                progress: progress * _animation.value,
+                                color: statusColor,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  "${(progress * 100).toInt()}%",
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  /// Stats
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _CardStat(
+                          label: "Spent",
+                          value: "₱${fmt.format(spent)}",
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _CardStat(
+                          label: "Remaining",
+                          value: "₱${fmt.format(remain.abs())}",
+                          valueColor:
+                              remain < 0 ? Colors.redAccent : Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  /// Footer
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "$daysLeft days left",
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.7),
+                          fontSize: 12,
+                        ),
+                      ),
+                      Text(
+                        status.name.toUpperCase(),
+                        style: TextStyle(
+                          color: statusColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Total Monthly Budget',
-              style: TextStyle(color: Colors.white70, fontSize: 13)),
-          const SizedBox(height: 6),
-          Text(budget > 0 ? '₱${fmt.format(budget)}' : 'No budget set',
-            style: const TextStyle(color: Colors.white, fontSize: 30,
-                fontWeight: FontWeight.w800, letterSpacing: -0.5)),
-          const SizedBox(height: 18),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            _CardStat(label: 'Spent', value: '₱${fmt.format(spent)}'),
-            _CardStat(label: 'Remaining',
-              value: '₱${fmt.format(remain.abs())}',
-              valueColor: remain < 0 ? const Color(0xFFFFCDD2) : Colors.white),
-          ]),
-          const SizedBox(height: 14),
-          ClipRRect(borderRadius: BorderRadius.circular(5),
-            child: LinearProgressIndicator(
-              value: progress,
-              backgroundColor: Colors.white24,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                progress > 0.9 ? const Color(0xFFFFCDD2) : Colors.white),
-              minHeight: 6)),
-          const SizedBox(height: 8),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text('${(progress * 100).toStringAsFixed(0)}% used',
-              style: const TextStyle(color: Colors.white60, fontSize: 12)),
-            Text('$daysLeft days left',
-              style: const TextStyle(color: Colors.white60, fontSize: 12)),
-          ]),
-        ]),
       ),
     );
+  }
+}
+
+/// ---------------------------
+/// Budget status
+/// ---------------------------
+enum _BudgetStatus { safe, warning, danger }
+
+/// ---------------------------
+/// Circular progress painter
+/// ---------------------------
+class _RingPainter extends CustomPainter {
+  final double progress;
+  final Color color;
+
+  _RingPainter({required this.progress, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final stroke = 6.0;
+
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.width / 2) - stroke;
+
+    final bgPaint = Paint()
+      ..color = Colors.white.withOpacity(0.15)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke;
+
+    final fgPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawCircle(center, radius, bgPaint);
+
+    final sweep = 2 * 3.1416 * progress;
+
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      -1.57,
+      sweep,
+      false,
+      fgPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _RingPainter oldDelegate) {
+    return oldDelegate.progress != progress ||
+        oldDelegate.color != color;
   }
 }
 
@@ -243,17 +474,27 @@ class _OverviewGrid extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Text('Overview', style: Theme.of(context).textTheme.headlineMedium),
-          OutlinedButton.icon(
-            onPressed: () {},
-            icon: const Icon(Icons.add, size: 14),
-            label: const Text('Set budget', style: TextStyle(fontSize: 12)),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.primary,
-              side: const BorderSide(color: AppColors.primary),
-              minimumSize: Size.zero,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
-          ),
+            OutlinedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ProfileScreen(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.add, size: 14),
+              label: const Text('Set budget', style: TextStyle(fontSize: 12)),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary),
+                minimumSize: Size.zero,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+            ),
         ]),
         const SizedBox(height: 12),
         Row(children: [
@@ -594,7 +835,7 @@ class _BottomBar extends StatelessWidget {
               _NBt(icon: Icons.home_rounded,       label: 'Home',    i: 0, cur: current, onTap: onTap),
               _NBt(icon: Icons.bar_chart_rounded,   label: 'Stats',   i: 1, cur: current, onTap: onTap),
               _NBt(icon: Icons.add_circle_rounded,  label: 'Add',     i: 2, cur: current, onTap: onTap, isAdd: true),
-              _NBt(icon: Icons.credit_card_rounded, label: 'Cards',   i: 3, cur: current, onTap: onTap),
+              _NBt(icon: Icons.currency_exchange_rounded, label: 'Trans',   i: 3, cur: current, onTap: onTap),
               _NBt(icon: Icons.person_rounded,      label: 'Profile', i: 4, cur: current, onTap: onTap),
             ],
           ),
